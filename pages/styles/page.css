@@ -89,13 +89,24 @@ button {
 }
 
 button:hover {
-    background-color: #29a63e;
+    background-color: var(--primary);
 }
 
-.btn-group {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+
+a {
+    color: var(--blue);
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+a:hover {
+    color: #2c3e50;
+    text-decoration: underline;
 }
 
 input[type="text"],
@@ -114,31 +125,6 @@ input[type="password"]:focus {
     border-color: var(--blue);
 }
 
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    background: var(--blue);
-    border: 2px solid #fff;
-    border-radius: 50%;
-    height: 20px;
-    width: 20px;
-
-}
-
-input:checked + .slider {
-    background-color: var(--blue);
-}
-
-
-input:checked + .slider:before {
-    transform: translateX(26px);
-}
-
-select, input[type="number"], input[type="range"] {
-    padding: 12px 15px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 1rem;
-}
 
 select {
     padding: 12px 15px;
@@ -158,6 +144,30 @@ select {
 select:focus {
     outline: none;
     border-color: #3498db;
+}
+
+[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+    outline: 0;
+    background-color: transparent;
+}
+
+[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: #eee;
+}
+
+
+[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: var(--blue);
+    margin-top: -8px;
 }
 
 @media (max-width: 768px) {

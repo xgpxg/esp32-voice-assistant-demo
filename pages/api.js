@@ -15,10 +15,20 @@ const checkResponse = (response) => {
     return response.data;
 };
 
+/**
+ * 获取WiFi列表
+ * @returns {Promise<any>}
+ */
 const getWifiList = () => {
     return fetch(API.WIFI_LIST).then(res => res.json()).then(checkResponse)
 }
 
+/**
+ * 连接WiFi
+ * @param ssid WIFI名
+ * @param password WIFI密码
+ * @returns {Promise<{ssid: string, signal_strength: number, auth_method: string}>}
+ */
 const connectWifi = (ssid, password) => {
     return fetch(API.WIFI_CONNECT, {
         method: 'POST',
@@ -33,6 +43,12 @@ const connectWifi = (ssid, password) => {
         .then(checkResponse);
 }
 
+/**
+ * 判断WiFi是否已连接。
+ * 已连接：返回连接的SSID
+ * 未连接：返回null
+ * @returns {Promise<any>}
+ */
 const wifiIsConnected = () => {
     return fetch(API.WIFI_IS_CONNECTED).then(res => res.json()).then(checkResponse)
 }

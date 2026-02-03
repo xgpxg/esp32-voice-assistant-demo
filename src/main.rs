@@ -1,83 +1,43 @@
-mod request;
-mod response;
+mod server;
 
+use embedded_svc::http::Headers;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::http::server::{Configuration, EspHttpServer};
-use esp_idf_svc::http::Method;
-use esp_idf_svc::io::Write;
-use esp_idf_svc::nvs::EspDefaultNvsPartition;
+use esp_idf_svc::nvs::{EspDefaultNvs, EspDefaultNvsPartition, EspNvs};
 use esp_idf_svc::wifi;
-use esp_idf_svc::wifi::{
-    AccessPointConfiguration, AuthMethod, BlockingWifi, ClientConfiguration, EspWifi,
-};
+use esp_idf_svc::wifi::{AccessPointConfiguration, AuthMethod, ClientConfiguration, EspWifi};
 use std::sync::{Arc, Mutex};
-
 const SSID: &str = "ESP32-WIFI";
 const PASSWORD: &str = "12345678";
 const CHANNEL: u8 = 1;
-
-macro_rules! register_static_files {
-    ($server:expr, $($route:expr => $file:expr),*) => {
-        $(
-            {
-                let file_data = include_bytes!($file);
-                let file_owned = Vec::from(file_data);
-                $server.fn_handler($route, Method::Get, move |req| {
-                    req.into_ok_response()?.write_all(&file_owned)
-                })?;
-            }
-        )*
-    };
-}
+const DEFAULT_NS: &str = "config";
 
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    log::info!("Hello, world!");
-
     // 获取外设
     let peripherals = Peripherals::take()?;
     let sys_loop = EspSystemEventLoop::take()?;
-    let nvs = EspDefaultNvsPartition::take()?;
+    let nvs_default_partition = EspDefaultNvsPartition::take()?;
 
-    // 启动WIFI
-    let mut wifi = BlockingWifi::wrap(
-        EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs))?,
-        sys_loop,
-    )?;
+    // 获取NVS
+    let nvs = EspNvs::new(nvs_default_partition, DEFAULT_NS, true)?;
 
-    connect_wifi(&mut wifi)?;
+    // 初始化WIFI
+    let mut wifi = EspWifi::new(peripherals.modem, sys_loop.clone(), None)?;
+    init_wifi(&mut wifi, &nvs)?;
 
     let wifi = Arc::new(Mutex::new(wifi));
+    let nvs = Arc::new(Mutex::new(nvs));
 
-    // 创建HTTP服务器
+    // 创建HTTP服务
     let mut server = EspHttpServer::new(&Configuration::default())?;
-
-    register_static_files!(
-        server,
-        "/" => "pages/index.html",
-        "/wifi.html" => "pages/wifi.html",
-        "/settings.html" => "pages/settings.html",
-        "/about.html" => "pages/about.html",
-        "/styles/common.css" => "pages/styles/common.css",
-        "/styles/page.css" => "pages/styles/page.css"
-    );
-
-     let wifi_for_server = wifi.clone();
-    server.fn_handler("/api/wifi/list", Method::Get, move |req| {
-        let mut wifi_guard = wifi_for_server.lock().unwrap();
-        let wifi = wifi_list(&mut *wifi_guard).map_err(|e| {
-            log::error!("wifi list error: {:?}", e);
-            anyhow::Error::from(e)
-        })?;
-        log::info!("wifi list: {:?}", wifi);
-        let _ = req
-            .into_ok_response()?
-            .write_all(&serde_json::to_vec(&wifi)?);
-        Ok::<(), anyhow::Error>(())
-    })?;
+    // 静态文件
+    server::register_static_files(&mut server)?;
+    // 网络相关接口
+    server::network::register(&mut server, wifi.clone(), nvs)?;
 
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
@@ -90,13 +50,17 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn connect_wifi(wifi: &mut BlockingWifi<EspWifi<'static>>) -> anyhow::Result<()> {
-    log::info!("Starting Wifi...");
+fn init_wifi(wifi: &mut EspWifi<'static>, nvs: &EspDefaultNvs) -> anyhow::Result<()> {
+    let mut buf = [0; 512];
+    let ssid = nvs.get_str("WIFI_SSID", &mut buf)?.unwrap_or_default();
+
+    let mut buf = [0; 512];
+    let password = nvs.get_str("WIFI_PASSWORD", &mut buf)?.unwrap_or_default();
 
     let cfg = wifi::Configuration::Mixed(
         ClientConfiguration {
-            ssid: SSID.try_into().unwrap(),
-            password: PASSWORD.try_into().unwrap(),
+            ssid: ssid.try_into().unwrap(),
+            password: password.try_into().unwrap(),
             ..Default::default()
         },
         AccessPointConfiguration {
@@ -112,25 +76,12 @@ fn connect_wifi(wifi: &mut BlockingWifi<EspWifi<'static>>) -> anyhow::Result<()>
     wifi.set_configuration(&cfg)?;
 
     wifi.start()?;
-    log::info!("Wifi started");
 
-
-    // wifi.connect()?;
-    // log::info!("Wifi connected");
-
-    //wifi.wait_netif_up()?;
-
-    log::info!("Wifi netif up");
-
-    log::info!("Created Wifi with WIFI_SSID `{SSID}` and WIFI_PASS `{PASSWORD}`");
+    // 尝试连接
+    if ssid != "" {
+        log::info!("Wifi连接中: {}", ssid);
+        wifi.connect()?;
+    }
 
     Ok(())
-}
-
-pub fn wifi_list(wifi: &mut BlockingWifi<EspWifi<'static>>) -> anyhow::Result<Vec<String>> {
-    Ok(wifi
-        .scan()?
-        .into_iter()
-        .map(|x| x.ssid.to_string())
-        .collect())
 }
