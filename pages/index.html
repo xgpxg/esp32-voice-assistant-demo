@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小哈语音助手</title>
+    <link rel="stylesheet" href="styles/common.css"/>
+    <link rel="stylesheet" href="styles/page.css"/>
+    <script src="scripts/vue.min.js"></script>
+    <script src="scripts/utils.js"></script>
+    <script src="api.js"></script>
+    <style>
+        .settings-section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            font-weight: 500;
+            color: #2c3e50;
+            width: 200px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+
+        @media (max-width: 768px) {
+            .setting-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+        }
+    </style>
+</head>
+<body>
+<div id="app" v-scope @vue:mounted="init" class="container">
+    <header>
+        <nav>
+            <div class="logo">小哈语音助手</div>
+        </nav>
+    </header>
+
+    <div class="settings-section">
+        <div class="flex-space-between">
+            <h2>WiFi 配置</h2>
+            <span v-if="connectedSSID" style="color: green">
+                已连接至 {{ connectedSSID }}
+            </span>
+            <span v-else style="color: red">未连接到网络</span>
+        </div>
+
+        <div class="setting-item">
+            <label for="ssid" class="setting-label">WiFi名称（SSID）</label>
+            <div class="flex fill-width">
+                <select id="ssid" v-model="ssid" class="mr10 fill-width">
+                    <option value="">请选择网络</option>
+                    <option v-for="network in networks" :value="network['ssid']">{{ network['ssid'] }}</option>
+                </select>
+                <button @click="loadNetworks" :disabled="loading" style="width: 180px">
+                    {{loading ? '加载中...' : '刷新列表'}}
+                </button>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label for="password" class="setting-label">密码</label>
+            <div class="flex fill-width">
+                <input id="password" type="password" v-model="password" placeholder="输入密码"
+                       class="mr10 fill-width">
+                <button @click="connectToWifi" :disabled="connecting" style="width: 180px">
+                    {{ connecting ? '连接中...' : '连接 WiFi' }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-section" class="settings-section">
+        <h2>模型设置</h2>
+
+        <div class="setting-item">
+            <label for="tts-model" class="setting-label">选择TTS模型</label>
+            <div class="setting-control">
+                <select id="tts-model" v-model="settings.ttsModel">
+                    <option value="tts-1">标准模型 (tts-1)</option>
+                    <option value="tts-1-hd">高清模型 (tts-1-hd)</option>
+                    <option value="chinese-hmm">中文模型 (chinese-hmm)</option>
+                    <option value="multilingual">多语言模型 (multilingual)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-label">模型温度</div>
+            <div class="setting-control">
+                <input type="range" v-model="settings.modelTemp" min="0" max="1" step="0.1" :value="settings.modelTemp"
+                       style="width: 150px; margin-right: 15px;" @input="updateTempValue">
+                <span>{{ tempValue }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h2>音色设置</h2>
+
+        <div class="setting-item">
+            <div class="setting-label">选择音色</div>
+            <div class="setting-control">
+                <select v-model="settings.voiceType">
+                    <option value="alloy">Alloy (通用)</option>
+                    <option value="echo">Echo (自然)</option>
+                    <option value="fable">Fable (清晰)</option>
+                    <option value="onyx">Onyx (沉稳)</option>
+                    <option value="nova">Nova (轻快)</option>
+                    <option value="shimmer">Shimmer (柔和)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-label">语速调节</div>
+            <div class="setting-control">
+                <input type="range" v-model="settings.speechSpeed" min="0.5" max="2" step="0.1"
+                       :value="settings.speechSpeed" @input="updateSpeedValue">
+                <span>{{ speedValue }}</span>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-label">音调调节</div>
+            <div class="setting-control">
+                <input type="range" v-model="settings.pitchLevel" min="0" max="2" step="0.1"
+                       :value="settings.pitchLevel" style="width: 150px; margin-right: 15px;" @input="updatePitchValue">
+
+                <span>{{ pitchValue }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h2>系统设置</h2>
+
+        <div class="setting-item">
+            <div class="setting-label">自动更新</div>
+            <div class="setting-control">
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="settings.autoUpdate">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button @click="saveSettings">保存设置</button>
+        <button @click="resetSettings" style="background-color: #95a5a6;">重置</button>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 小哈语音助手</p>
+    </footer>
+</div>
+
+<script>
+    PetiteVue.createApp({
+        // 模型设置
+        settings: {
+            ttsModel: 'tts-1',
+            modelTemp: 0.5,
+            voiceType: 'alloy',
+            speechSpeed: 1.0,
+            pitchLevel: 1.0,
+            autoUpdate: true,
+            darkMode: false,
+            logLevel: 'info',
+            autoReconnect: true,
+            reconnectInterval: 10,
+            encryptionEnabled: true,
+            authTimeout: 30
+        },
+
+        // 滑块显示值
+        tempValue: '0.5',
+        speedValue: '1.0x',
+        pitchValue: '1.0x',
+
+        // WiFi 相关数据
+        ssid: '',
+        password: '',
+        networks: [],
+        connecting: false,
+        loading: true,
+        connectedSSID: false,
+
+        init() {
+            this.loadSettings()
+            this.loadNetworks()
+            this.wifiIsConnected()
+
+            setInterval(() => {
+                this.wifiIsConnected()
+            }, 1000)
+        },
+
+        async loadNetworks() {
+            this.loading = true;
+            try {
+                this.networks = await getWifiList();
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        selectNetwork(network) {
+            this.ssid = network['ssid'];
+            this.password = '';
+        },
+        connectToWifi() {
+            this.connecting = true;
+            try {
+                connectWifi(this.ssid, this.password)
+            } finally {
+                this.connecting = false;
+            }
+        },
+        async wifiIsConnected() {
+            this.connectedSSID = await wifiIsConnected()
+        },
+
+        // 设置方法
+        updateTempValue() {
+            this.tempValue = this.settings.modelTemp;
+        },
+
+        updateSpeedValue() {
+            this.speedValue = this.settings.speechSpeed + 'x';
+        },
+
+        updatePitchValue() {
+            this.pitchValue = this.settings.pitchLevel + 'x';
+        },
+
+        // 保存设置
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+
+                const data = await response.json();
+                console.log('设置保存成功:', data);
+                msg.success('设置已保存到ESP32设备');
+            } catch (error) {
+                console.error('保存设置时出错:', error);
+                msg.error('设置保存失败，请重试');
+            }
+        },
+
+        // 重置设置
+        resetSettings() {
+            if (confirm('确定要重置所有设置吗？')) {
+                Object.assign(this.settings, {
+                    ttsModel: 'tts-1',
+                    modelTemp: 0.5,
+                    voiceType: 'alloy',
+                    speechSpeed: 1.0,
+                    pitchLevel: 1.0,
+                    autoUpdate: true,
+                    darkMode: false,
+                    logLevel: 'info',
+                    autoReconnect: true,
+                    reconnectInterval: 10,
+                    encryptionEnabled: true,
+                    authTimeout: 30
+                });
+
+                // 更新滑块显示值
+                this.updateTempValue();
+                this.updateSpeedValue();
+                this.updatePitchValue();
+
+                msg.info('设置已重置为默认值');
+            }
+        },
+
+        // 加载设置
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+
+                if (data.success) {
+                    Object.assign(this.settings, data.settings);
+
+                    // 更新滑块显示值
+                    this.updateTempValue();
+                    this.updateSpeedValue();
+                    this.updatePitchValue();
+                }
+            } catch (error) {
+                console.error('加载设置时出错:', error);
+            }
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
