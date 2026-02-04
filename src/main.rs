@@ -1,5 +1,8 @@
+mod client;
+mod config;
 mod server;
 
+use crate::config::Config;
 use embedded_svc::http::Headers;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::hal::peripherals::Peripherals;
@@ -8,6 +11,7 @@ use esp_idf_svc::nvs::{EspDefaultNvs, EspDefaultNvsPartition, EspNvs};
 use esp_idf_svc::wifi;
 use esp_idf_svc::wifi::{AccessPointConfiguration, AuthMethod, ClientConfiguration, EspWifi};
 use std::sync::{Arc, Mutex};
+
 const SSID: &str = "ESP32-WIFI";
 const PASSWORD: &str = "12345678";
 const CHANNEL: u8 = 1;
@@ -32,12 +36,20 @@ fn main() -> anyhow::Result<()> {
     let wifi = Arc::new(Mutex::new(wifi));
     let nvs = Arc::new(Mutex::new(nvs));
 
+    // 加载配置
+    let config = Config::new(&wifi.lock().unwrap(), &nvs.lock().unwrap())?;
+    log::info!("配置: {:?}", config);
+
+    let config = Arc::new(Mutex::new(config));
+
     // 创建HTTP服务
     let mut server = EspHttpServer::new(&Configuration::default())?;
     // 静态文件
     server::register_static_files(&mut server)?;
     // 网络相关接口
-    server::network::register(&mut server, wifi.clone(), nvs)?;
+    server::network::register(&mut server, wifi.clone(), nvs.clone(), config.clone())?;
+    // 系统设置
+    server::settings::register(&mut server, wifi.clone(), nvs.clone(), config.clone())?;
 
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
@@ -51,16 +63,13 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn init_wifi(wifi: &mut EspWifi<'static>, nvs: &EspDefaultNvs) -> anyhow::Result<()> {
-    let mut buf = [0; 512];
-    let ssid = nvs.get_str("WIFI_SSID", &mut buf)?.unwrap_or_default();
-
-    let mut buf = [0; 512];
-    let password = nvs.get_str("WIFI_PASSWORD", &mut buf)?.unwrap_or_default();
+    let ssid = Config::get_wifi_ssid(nvs);
+    let password = Config::get_wifi_password(nvs);
 
     let cfg = wifi::Configuration::Mixed(
         ClientConfiguration {
-            ssid: ssid.try_into().unwrap(),
-            password: password.try_into().unwrap(),
+            ssid: ssid.as_str().try_into().unwrap(),
+            password: password.as_str().try_into().unwrap(),
             ..Default::default()
         },
         AccessPointConfiguration {

@@ -5,6 +5,8 @@ const API = {
     WIFI_LIST: `${BASE_URL}/api/wifi/list`,
     WIFI_CONNECT: `${BASE_URL}/api/wifi/connect`,
     WIFI_IS_CONNECTED: `${BASE_URL}/api/wifi/is_connected`,
+    GET_SETTINGS: `${BASE_URL}/api/settings/get`,
+    UPSERT_SETTINGS: `${BASE_URL}/api/settings/upsert`,
 }
 
 const checkResponse = (response) => {
@@ -51,4 +53,19 @@ const connectWifi = (ssid, password) => {
  */
 const wifiIsConnected = () => {
     return fetch(API.WIFI_IS_CONNECTED).then(res => res.json()).then(checkResponse)
+}
+
+const get_settings = () => {
+    return fetch(API.GET_SETTINGS).then(res => res.json()).then(checkResponse)
+}
+
+const upsert_settings = (settings) => {
+    return fetch(API.UPSERT_SETTINGS, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+    }).then(res => res.json())
+        .then(checkResponse);
 }

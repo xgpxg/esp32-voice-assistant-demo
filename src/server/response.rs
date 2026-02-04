@@ -59,7 +59,22 @@ where
 
 #[derive(Debug, Serialize)]
 pub struct WifiListRes {
+    /// WiFi名
     pub ssid: String,
+    /// 信号强度
     pub signal_strength: i8,
+    /// 认证方式
     pub auth_method: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SettingsRes {
+    /// 角色提示词
+    pub role_prompt: String,
+    /// 音色
+    pub voice: String,
+    /// 语速，取值：[0,255]
+    pub speech_speed: u8,
+    /// 音量，取值：[0,255]
+    pub volume: u8,
 }

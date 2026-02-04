@@ -109,8 +109,7 @@ a:hover {
     text-decoration: underline;
 }
 
-input[type="text"],
-input[type="password"] {
+input {
     width: 100%;
     padding: 12px 15px;
     border: 1px solid #ddd;
@@ -119,8 +118,7 @@ input[type="password"] {
     transition: border-color 0.3s;
 }
 
-input[type="text"]:focus,
-input[type="password"]:focus {
+input:focus {
     outline: none;
     border-color: var(--blue);
 }
@@ -152,6 +150,7 @@ select:focus {
     margin: 0;
     outline: 0;
     background-color: transparent;
+    border: none;
 }
 
 [type="range"]::-webkit-slider-runnable-track {
@@ -168,6 +167,10 @@ select:focus {
     border-radius: 50%;
     background-color: var(--blue);
     margin-top: -8px;
+}
+
+input[type="range"] {
+    padding: 0;
 }
 
 @media (max-width: 768px) {

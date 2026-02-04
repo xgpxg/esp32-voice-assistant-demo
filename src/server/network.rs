@@ -1,3 +1,5 @@
+use crate::config::Config;
+use crate::json_body;
 use crate::server::request;
 use crate::server::response::{Res, WifiListRes};
 use anyhow::bail;
@@ -16,6 +18,7 @@ pub fn register(
     server: &mut EspHttpServer,
     wifi: Arc<Mutex<EspWifi<'static>>>,
     nvs: Arc<Mutex<EspDefaultNvs>>,
+    config: Arc<Mutex<Config>>,
 ) -> anyhow::Result<()> {
     // 获取wifi列表
     let wifi_clone = wifi.clone();
@@ -30,10 +33,12 @@ pub fn register(
 
     // 连接wifi
     let wifi_clone = wifi.clone();
+    let config_clone = config.clone();
     server.fn_handler("/api/wifi/connect", Method::Post, move |mut request| {
         let mut wifi_guard = wifi_clone.lock().unwrap();
         let mut nvs_guard = nvs.lock().unwrap();
-        match connect_wifi(&mut request, &mut *wifi_guard, &mut *nvs_guard) {
+        let mut config_guard = config_clone.lock().unwrap();
+        match connect_wifi(&mut request, &mut *wifi_guard, &mut *nvs_guard, &mut *config_guard) {
             Ok(()) => Res::success(()).response_to(request),
             Err(e) => Res::<()>::error(&e.to_string()).response_to(request),
         }
@@ -94,23 +99,27 @@ fn connect_wifi(
     request: &mut Request<&mut EspHttpConnection>,
     wifi: &mut EspWifi,
     nvs: &mut EspDefaultNvs,
+    config: &mut Config,
 ) -> anyhow::Result<()> {
-    let len = request.content_len().unwrap_or(0) as usize;
-    let mut buf = vec![0; len];
-    request.read_exact(&mut buf)?;
+    let req: request::ConnectWifiReq = json_body!(request);
 
-    let req: request::ConnectWifiReq = serde_json::from_slice(&buf)?;
+    log::info!("正在连接: {}", req.ssid);
 
     wifi.disconnect()?;
 
     // 等待断开
-    sleep(std::time::Duration::from_secs(1));
+    loop {
+        if !wifi.is_connected()? {
+            break;
+        }
+        sleep(std::time::Duration::from_millis(100));
+    }
 
     // 重新设置SSID和密码
     let mut configuration = wifi.get_configuration()?;
-    let config = configuration.as_mixed_conf_mut();
-    config.0.ssid = req.ssid.as_str().try_into().unwrap();
-    config.0.password = req.password.as_str().try_into().unwrap();
+    let wifi_config = configuration.as_mixed_conf_mut();
+    wifi_config.0.ssid = req.ssid.as_str().try_into().unwrap();
+    wifi_config.0.password = req.password.as_str().try_into().unwrap();
     wifi.set_configuration(&configuration)?;
 
     // 尝试连接
@@ -122,8 +131,10 @@ fn connect_wifi(
     let mut count = 0;
     while count < 10 {
         if wifi.is_connected()? {
-            nvs.set_str("WIFI_SSID", req.ssid.as_str())?;
-            nvs.set_str("WIFI_PASSWORD", req.password.as_str())?;
+            config.set_wifi_ssid(req.ssid.as_str(), nvs)?;
+            config.set_wifi_password(req.password.as_str(), nvs)?;
+            // nvs.set_str("WIFI_SSID", req.ssid.as_str())?;
+            // nvs.set_str("WIFI_PASSWORD", req.password.as_str())?;
             log::info!("Wifi连接成功: {}", req.ssid);
             return Ok(());
         }
