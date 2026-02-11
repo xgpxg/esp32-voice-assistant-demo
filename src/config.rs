@@ -4,6 +4,7 @@ use esp_idf_svc::wifi::{EspWifi, WifiDeviceId};
 #[derive(Debug)]
 pub struct Config {
     /// 设备SN
+    #[allow(unused)]
     pub sn: String,
     /// WIFI名称
     pub wifi_ssid: String,
@@ -141,6 +142,7 @@ impl Config {
     }
 }
 
+#[allow(unused)]
 impl Config {
     impl_str_setter!(set_wifi_ssid, wifi_ssid, "wifi_ssid");
     impl_str_setter!(set_wifi_password, wifi_password, "wifi_password");

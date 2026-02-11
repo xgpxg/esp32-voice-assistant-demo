@@ -12,10 +12,9 @@ macro_rules! register_static_files {
         $(
             {
                 let file_data = include_bytes!($file);
-                let file_owned = Vec::from(file_data);
                 let content_type = get_content_type($file);
                 $server.fn_handler($route, Method::Get, move |req| {
-                    req.into_response(200,None,&[("Content-Type", content_type)])?.write_all(&file_owned)
+                    req.into_response(200,None,&[("Content-Type", content_type)])?.write_all(file_data)
                 })?;
             }
         )*
@@ -24,16 +23,14 @@ macro_rules! register_static_files {
 
 #[macro_export]
 macro_rules! json_body {
-    ($req:expr) => {
-        {
-            use embedded_svc::http::Headers;
-           use embedded_svc::io::Read;
-            let len = $req.content_len().unwrap_or(0) as usize;
-            let mut buf = vec![0; len];
-            $req.read_exact(&mut buf)?;
-            serde_json::from_slice(&buf)?
-        }
-    };
+    ($req:expr) => {{
+        use embedded_svc::http::Headers;
+        use embedded_svc::io::Read;
+        let len = $req.content_len().unwrap_or(0) as usize;
+        let mut buf = vec![0; len];
+        $req.read_exact(&mut buf)?;
+        serde_json::from_slice(&buf)?
+    }};
 }
 
 fn get_content_type(file_path: &str) -> &'static str {

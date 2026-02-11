@@ -4,13 +4,11 @@ use crate::server::request;
 use crate::server::response::{Res, WifiListRes};
 use anyhow::bail;
 use embedded_svc::http::server::Request;
-use embedded_svc::http::{Headers, Method};
+use embedded_svc::http::Method;
 use embedded_svc::wifi::{AuthMethod, Wifi};
 use esp_idf_svc::http::server::{EspHttpConnection, EspHttpServer};
-use esp_idf_svc::io::Read;
 use esp_idf_svc::nvs::EspDefaultNvs;
 use esp_idf_svc::wifi::EspWifi;
-use serde_json::json;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 
@@ -38,7 +36,12 @@ pub fn register(
         let mut wifi_guard = wifi_clone.lock().unwrap();
         let mut nvs_guard = nvs.lock().unwrap();
         let mut config_guard = config_clone.lock().unwrap();
-        match connect_wifi(&mut request, &mut *wifi_guard, &mut *nvs_guard, &mut *config_guard) {
+        match connect_wifi(
+            &mut request,
+            &mut *wifi_guard,
+            &mut *nvs_guard,
+            &mut *config_guard,
+        ) {
             Ok(()) => Res::success(()).response_to(request),
             Err(e) => Res::<()>::error(&e.to_string()).response_to(request),
         }
@@ -48,7 +51,7 @@ pub fn register(
     // 检查wifi是否已连接
     let wifi_clone = wifi.clone();
     server.fn_handler("/api/wifi/is_connected", Method::Get, move |request| {
-        let mut wifi_guard = wifi_clone.lock().unwrap();
+        let wifi_guard = wifi_clone.lock().unwrap();
         match wifi_guard.is_connected() {
             Ok(true) => Res::success(Some(
                 wifi_guard

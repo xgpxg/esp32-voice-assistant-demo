@@ -24,11 +24,21 @@ experimental = ["esp-idf-svc/experimental"]
 
 [dependencies]
 log = "0.4"
-esp-idf-svc = "0.51"
+esp-idf-svc = { version = "0.51", features = ["alloc", "embassy-time-driver", "embassy-sync"] }
+critical-section = { version = "1.1", features = ["std"], default-features = false }
 anyhow = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 embedded-svc = "0.28.1"
+esp-idf-hal = "0.45.2"
+esp-idf-sys = "0.36.1"
+uuid = { version = "1.19.0", features = ["v4"] }
+embassy-executor = { version = "0.7", features = ["executor-thread", "arch-std"] }
+embassy-time = "0.5.0"
+embassy-sync = "0.7.2"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "espressif/esp_websocket_client", version = "1.6.1" }
 
 # --- Optional Embassy Integration ---
 # esp-idf-svc = { version = "0.51", features = ["critical-section", "embassy-time-driver", "embassy-sync"] }

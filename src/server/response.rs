@@ -40,6 +40,8 @@ where
         self.code == 0
     }
 
+
+    #[allow(unused)]
     pub fn to_json_string(&self) -> String {
         serde_json::json!(&self).to_string()
     }
