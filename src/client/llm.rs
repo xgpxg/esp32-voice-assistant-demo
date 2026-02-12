@@ -22,7 +22,7 @@ impl LLM {
 
     const API: &str = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
     const MODEL: &str = "qwen-plus";
-    const API_KEY: &str = env!("MASTER_JIN_COSY_VOICE_API_KEY");
+    const API_KEY: &str = env!("MASTER_JIN_ALI_API_KEY");
     pub fn chat(&mut self, input: &str) -> anyhow::Result<String> {
         let json = json!({
             "model": Self::MODEL,

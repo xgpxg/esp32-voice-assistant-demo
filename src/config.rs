@@ -1,5 +1,6 @@
 use esp_idf_svc::nvs::EspDefaultNvs;
 use esp_idf_svc::wifi::{EspWifi, WifiDeviceId};
+use std::sync::{Arc, OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 #[derive(Debug)]
 pub struct Config {
@@ -21,8 +22,7 @@ pub struct Config {
     /// 语速，取值：[0, 255]
     /// 映射到：[0.5 ,2.0]
     pub speech_speed: u8,
-    /// 音量，取值：[0,255]
-    /// 映射到：[1.0 ,10.0]
+    /// 音量，取值：[0,100]
     pub volume: u8,
 }
 
@@ -37,7 +37,7 @@ impl Config {
         "qwen-tts"
     }
     pub fn default_voice() -> &'static str {
-        ""
+        "longanhuan"
     }
 
     pub fn default_speech_speed() -> u8 {
@@ -141,7 +141,6 @@ impl Config {
             .to_string()
     }
 }
-
 #[allow(unused)]
 impl Config {
     impl_str_setter!(set_wifi_ssid, wifi_ssid, "wifi_ssid");
@@ -152,4 +151,21 @@ impl Config {
     impl_str_setter!(set_voice, voice, "voice");
     impl_u8_setter!(set_speech_speed, speech_speed, "speech_speed");
     impl_u8_setter!(set_volume, volume, "volume");
+}
+
+pub static CONFIG: OnceLock<Arc<RwLock<Config>>> = OnceLock::new();
+
+impl Config {
+    pub fn get() -> RwLockReadGuard<'static, Config> {
+        CONFIG.get().unwrap().read().unwrap()
+    }
+    pub fn get_mut() -> RwLockWriteGuard<'static, Config> {
+        CONFIG.get().unwrap().write().unwrap()
+    }
+    pub fn get_voice() -> String {
+        Self::get().voice.clone()
+    }
+    pub fn get_volume() -> u8 {
+        Self::get().volume
+    }
 }

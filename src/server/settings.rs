@@ -12,11 +12,9 @@ pub fn register(
     server: &mut EspHttpServer,
     _wifi: Arc<Mutex<EspWifi<'static>>>,
     nvs: Arc<Mutex<EspDefaultNvs>>,
-    config: Arc<Mutex<Config>>,
 ) -> anyhow::Result<()> {
-    let config_clone = config.clone();
     server.fn_handler("/api/settings/get", Method::Get, move |request| {
-        let config = config_clone.lock().unwrap();
+        let config = Config::get();
         let setting = SettingsRes {
             role_prompt: config.role_prompt.clone(),
             voice: config.voice.clone(),
@@ -28,11 +26,10 @@ pub fn register(
     })?;
 
     let nvs_clone = nvs.clone();
-    let config_clone = config.clone();
     server.fn_handler("/api/settings/upsert", Method::Post, move |mut request| {
         let req: SettingsReq = json_body!(request);
         let mut nvs = nvs_clone.lock().unwrap();
-        let mut config = config_clone.lock().unwrap();
+        let mut config = Config::get_mut();
         config.set_role_prompt(&req.role_prompt, &mut nvs)?;
         config.set_voice(&req.voice, &mut nvs)?;
         config.set_speech_speed(req.speech_speed, &mut nvs)?;

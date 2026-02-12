@@ -16,7 +16,6 @@ pub fn register(
     server: &mut EspHttpServer,
     wifi: Arc<Mutex<EspWifi<'static>>>,
     nvs: Arc<Mutex<EspDefaultNvs>>,
-    config: Arc<Mutex<Config>>,
 ) -> anyhow::Result<()> {
     // 获取wifi列表
     let wifi_clone = wifi.clone();
@@ -31,17 +30,10 @@ pub fn register(
 
     // 连接wifi
     let wifi_clone = wifi.clone();
-    let config_clone = config.clone();
     server.fn_handler("/api/wifi/connect", Method::Post, move |mut request| {
         let mut wifi_guard = wifi_clone.lock().unwrap();
         let mut nvs_guard = nvs.lock().unwrap();
-        let mut config_guard = config_clone.lock().unwrap();
-        match connect_wifi(
-            &mut request,
-            &mut *wifi_guard,
-            &mut *nvs_guard,
-            &mut *config_guard,
-        ) {
+        match connect_wifi(&mut request, &mut *wifi_guard, &mut *nvs_guard) {
             Ok(()) => Res::success(()).response_to(request),
             Err(e) => Res::<()>::error(&e.to_string()).response_to(request),
         }
@@ -102,7 +94,6 @@ fn connect_wifi(
     request: &mut Request<&mut EspHttpConnection>,
     wifi: &mut EspWifi,
     nvs: &mut EspDefaultNvs,
-    config: &mut Config,
 ) -> anyhow::Result<()> {
     let req: request::ConnectWifiReq = json_body!(request);
 
@@ -134,6 +125,7 @@ fn connect_wifi(
     let mut count = 0;
     while count < 10 {
         if wifi.is_connected()? {
+            let mut config = Config::get_mut();
             config.set_wifi_ssid(req.ssid.as_str(), nvs)?;
             config.set_wifi_password(req.password.as_str(), nvs)?;
             // nvs.set_str("WIFI_SSID", req.ssid.as_str())?;

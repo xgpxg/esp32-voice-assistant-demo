@@ -7,7 +7,7 @@ use crate::client::mic::{Mic, MicEvent};
 use crate::client::speaker::Speaker;
 use crate::client::stt::STT;
 use crate::client::tts::TTS;
-use crate::config::Config;
+use crate::config::{Config, CONFIG};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::{Channel, Receiver, Sender};
 use embassy_time::Timer;
@@ -19,7 +19,7 @@ use esp_idf_svc::nvs::{EspDefaultNvs, EspDefaultNvsPartition, EspNvs};
 use esp_idf_svc::wifi;
 use esp_idf_svc::wifi::{AccessPointConfiguration, AuthMethod, ClientConfiguration, EspWifi};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 const SSID: &str = "ESP32-WIFI";
 const PASSWORD: &str = "12345678";
@@ -70,24 +70,16 @@ async fn main(spawner: embassy_executor::Spawner) {
     let config = Config::new(&wifi.lock().unwrap(), &nvs.lock().unwrap()).unwrap();
     log::info!("配置: {:?}", config);
 
-    let config = Arc::new(Mutex::new(config));
+    let _ = CONFIG.set(Arc::new(RwLock::new(config)));
 
     // 创建HTTP服务
     let mut server = EspHttpServer::new(&Configuration::default()).unwrap();
     // 静态文件
     server::register_static_files(&mut server).unwrap();
     // 网络相关接口
-    server::network::register(&mut server, wifi.clone(), nvs.clone(), config.clone()).unwrap();
+    server::network::register(&mut server, wifi.clone(), nvs.clone()).unwrap();
     // 系统设置
-    server::settings::register(&mut server, wifi.clone(), nvs.clone(), config.clone()).unwrap();
-
-    let mic = Mic::new(
-        peripherals.i2s1,
-        peripherals.pins.gpio5,
-        peripherals.pins.gpio38,
-        peripherals.pins.gpio7,
-    )
-    .unwrap();
+    server::settings::register(&mut server, wifi.clone(), nvs.clone()).unwrap();
 
     loop {
         if wifi.lock().unwrap().is_connected().unwrap() {
@@ -98,6 +90,14 @@ async fn main(spawner: embassy_executor::Spawner) {
         log::info!("等待WiFi连接");
         Timer::after_secs(1).await;
     }
+
+    let mic = Mic::new(
+        peripherals.i2s1,
+        peripherals.pins.gpio5,
+        peripherals.pins.gpio38,
+        peripherals.pins.gpio7,
+    )
+    .expect("麦克风初始化失败");
 
     let stt = STT::new();
     let llm = LLM::new();
@@ -137,8 +137,6 @@ async fn main(spawner: embassy_executor::Spawner) {
 #[embassy_executor::task]
 async fn mic_task(mut mic: Mic, tx: MicSender) {
     let mut buf = Vec::new();
-    const MAX_LEN: usize = 1024 * 1024;
-
     while let Ok(event) = mic.read() {
         if !MIC_ENABLE.load(Ordering::Relaxed) {
             Timer::after_millis(100).await;

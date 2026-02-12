@@ -1,4 +1,5 @@
 use crate::client::{Action, WsEvent};
+use crate::config::Config;
 use crate::MIC_ENABLE;
 use embassy_time::Timer;
 use embedded_svc::ws::FrameType;
@@ -8,7 +9,7 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::time::Duration;
 
-pub struct TTS;
+pub struct TTS {}
 
 impl TTS {
     pub fn new() -> Self {
@@ -162,10 +163,10 @@ impl Action for TTSAction {
                 "model": "cosyvoice-v3-flash",
                 "parameters": {
                     "text_type": "PlainText",
-                    "voice": "longanhuan",
+                    "voice": Config::get_voice(),
                     "format": "pcm",
                     "sample_rate": 16000,
-                    "volume": 100,
+                    "volume": Config::get_volume(),
                     "rate": 1,
                     "pitch": 1
                 },

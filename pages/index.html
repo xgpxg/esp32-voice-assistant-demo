@@ -119,12 +119,10 @@
             <div class="setting-label">选择音色</div>
             <div class="flex fill-width">
                 <select v-model="settings.voice" class="fill-width">
-                    <option value="alloy">Alloy (通用)</option>
-                    <option value="echo">Echo (自然)</option>
-                    <option value="fable">Fable (清晰)</option>
-                    <option value="onyx">Onyx (沉稳)</option>
-                    <option value="nova">Nova (轻快)</option>
-                    <option value="shimmer">Shimmer (柔和)</option>
+                    <option value="longanyang">男声</option>
+                    <option value="longwan_v3">女声</option>
+                    <option value="longjielidou_v3">小男孩</option>
+                    <option value="longling_v3">小女孩</option>
                 </select>
             </div>
         </div>
@@ -141,9 +139,9 @@
         <div class="setting-item">
             <label for="volume" class="setting-label">音调调节</label>
             <div class="flex-v fill-width">
-                <input id="volume" v-model="settings.volume" type="range" min="0" max="10" step="0.1"
+                <input id="volume" v-model="settings.volume" type="range" min="0" max="100" step="1"
                        class="fill-width">
-                <span class="ml20">{{ Number(settings.volume).toFixed(1) }}</span>
+                <span class="ml20">{{ settings.volume }}</span>
             </div>
         </div>
     </div>
@@ -173,8 +171,6 @@
     <footer>
         <p>&copy; 2026 金师傅</p>
     </footer>
-
-    {{settings}}
 </div>
 
 <script>
@@ -191,7 +187,7 @@
             // 语速
             speech_speed: 128,
             // 音量
-            volume: 128,
+            volume: 50,
         },
 
         // 滑块显示值
@@ -219,7 +215,6 @@
         async loadSettings() {
             this.settings = await get_settings()
             this.settings.speech_speed = (this.settings.speech_speed * 2 / 255)
-            this.settings.volume = (this.settings.volume * 10 / 255)
         },
         async saveSettings() {
             if (this.settings.role_prompt.length > 256) {
@@ -228,7 +223,7 @@
             await upsert_settings({
                 ...this.settings,
                 speech_speed: Number((this.settings.speech_speed / 2 * 255).toFixed(0)),
-                volume: Number((this.settings.volume / 10 * 255).toFixed(0)),
+                volume: Number(this.settings.volume),
             }).then(() => {
                 msg.success('配置已更新')
             })
