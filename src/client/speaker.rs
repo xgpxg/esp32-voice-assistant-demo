@@ -13,7 +13,6 @@ impl Speaker {
     pub fn new(i2s0: I2S0, bclk: Gpio1, dout: Gpio4, ws: Gpio2) -> anyhow::Result<Self> {
         log::info!("初始化扬声器...");
 
-        // let std_config = StdConfig::philips(Self::SAMPLE_RATE, DataBitWidth::Bits16);
         let std_config = StdConfig::new(
             Config::default(),
             StdClkConfig::from_sample_rate_hz(Self::SAMPLE_RATE),

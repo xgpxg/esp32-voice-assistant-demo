@@ -33,7 +33,6 @@ impl Mic {
     pub fn new(i2s1: I2S1, bclk: Gpio5, sd: Gpio38, ws: Gpio7) -> anyhow::Result<Self> {
         log::info!("初始化麦克风...");
 
-        //let std_config = StdConfig::philips(Self::SAMPLE_RATE, DataBitWidth::Bits16);
         let std_config = StdConfig::new(
             Config::default(),
             StdClkConfig::from_sample_rate_hz(Self::SAMPLE_RATE),
