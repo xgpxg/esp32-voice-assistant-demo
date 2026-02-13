@@ -18,6 +18,8 @@
 
 喇叭接线参考：[speaker.rs](https://github.com/xgpxg/esp32-voice-assistant-demo/blob/master/src/client/speaker.rs)
 
+![配置页面](docs/device.png)
+
 ## 软件
 
 - 语言：Rust
