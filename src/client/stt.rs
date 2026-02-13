@@ -1,4 +1,5 @@
 use crate::client::{Action, WsEvent};
+use crate::config::Config;
 use embassy_time::Timer;
 use embedded_svc::ws::FrameType;
 use esp_idf_svc::ws::client::{EspWebSocketClient, EspWebSocketClientConfig, WebSocketEventType};
@@ -79,7 +80,7 @@ impl STT {
     }
 
     const API: &str = "wss://dashscope.aliyuncs.com/api-ws/v1/inference";
-    const API_KEY: &str = env!("MASTER_JIN_ALI_API_KEY");
+    //const API_KEY: &str = env!("MASTER_JIN_ALI_API_KEY");
     fn new_ws_client(
         tx: mpsc::Sender<WsEvent<String>>,
     ) -> anyhow::Result<EspWebSocketClient<'static>> {
@@ -87,7 +88,7 @@ impl STT {
 
         let mut config = EspWebSocketClientConfig::default();
 
-        let headers = [("Authorization", Self::API_KEY)];
+        let headers = [("Authorization", &Config::get().api_key)];
         let mut headers_str = headers
             .iter()
             .map(|(k, v)| format!("{k}: {v}"))

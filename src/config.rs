@@ -11,41 +11,18 @@ pub struct Config {
     pub wifi_ssid: String,
     /// WIFI密码
     pub wifi_password: String,
+    /// API KEY
+    pub api_key: String,
     /// 语言模型
     pub text_model: String,
     /// 角色提示词
     pub role_prompt: String,
-    /// 语音模型
-    pub tts_model: String,
     /// 音色
     pub voice: String,
-    /// 语速，取值：[0, 255]
-    /// 映射到：[0.5 ,2.0]
-    pub speech_speed: u8,
+    /// 语速，取值：[0.5 ,2.0]
+    pub speech_speed: f32,
     /// 音量，取值：[0,100]
     pub volume: u8,
-}
-
-impl Config {
-    pub fn default_text_model() -> &'static str {
-        "qwen-plus"
-    }
-    pub fn default_role_prompt() -> &'static str {
-        "You are a helpful assistant."
-    }
-    pub fn default_tts_model() -> &'static str {
-        "qwen-tts"
-    }
-    pub fn default_voice() -> &'static str {
-        "longanhuan"
-    }
-
-    pub fn default_speech_speed() -> u8 {
-        128
-    }
-    pub fn default_volume() -> u8 {
-        128
-    }
 }
 
 macro_rules! impl_str_setter {
@@ -68,53 +45,39 @@ macro_rules! impl_u8_setter {
 }
 impl Config {
     pub fn new(wifi: &EspWifi, nvs: &EspDefaultNvs) -> anyhow::Result<Self> {
-        let mut buf = [0u8; 128];
-        let wifi_ssid = nvs
-            .get_str("wifi_ssid", &mut buf)?
-            .unwrap_or("")
-            .to_string();
-        let mut buf = [0u8; 128];
-        let wifi_password = nvs
-            .get_str("wifi_password", &mut buf)?
-            .unwrap_or("")
-            .to_string();
-        let mut buf = [0u8; 128];
-        let text_model = nvs
-            .get_str("text_model", &mut buf)?
-            .unwrap_or(&Self::default_text_model())
-            .to_string();
-        let mut buf = [0u8; 256];
-        let role_prompt = nvs
-            .get_str("role_prompt", &mut buf)?
-            .unwrap_or(&Self::default_role_prompt())
-            .to_string();
-        let mut buf = [0u8; 128];
-        let tts_model = nvs
-            .get_str("tts_model", &mut buf)?
-            .unwrap_or(&Self::default_tts_model())
-            .to_string();
-        let mut buf = [0u8; 128];
-        let voice = nvs
-            .get_str("voice", &mut buf)?
-            .unwrap_or(&Self::default_voice())
-            .to_string();
-        let speech_speed = nvs
-            .get_u8("speech_speed")?
-            .unwrap_or(Self::default_speech_speed());
-        let volume = nvs.get_u8("volume")?.unwrap_or(Self::default_volume());
+        let wifi_ssid = Self::get_nvs_string(nvs, "wifi_ssid", "", 128)?;
+        let wifi_password = Self::get_nvs_string(nvs, "wifi_password", "", 128)?;
+        let api_key = Self::get_nvs_string(nvs, "api_key", "", 128)?;
+        let text_model = Self::get_nvs_string(nvs, "text_model", "qwen-plus", 128)?;
+        let role_prompt = Self::get_nvs_string(nvs, "role_prompt", "", 128)?;
+        let voice = Self::get_nvs_string(nvs, "voice", "longanhuan", 128)?;
+        let speech_speed = Self::get_nvs_string(nvs, "speech_speed", "1.0", 128)?.parse()?;
+        let volume = Self::get_nvs_u8(nvs, "volume", 50)?;
         Ok(Config {
             sn: Self::make_sn(&wifi)?,
             wifi_ssid,
             wifi_password,
+            api_key,
             text_model,
             role_prompt,
-            tts_model,
             voice,
             speech_speed,
             volume,
         })
     }
 
+    fn get_nvs_string(
+        nvs: &EspDefaultNvs,
+        key: &str,
+        default: &str,
+        buf_size: usize,
+    ) -> anyhow::Result<String> {
+        let mut buf = vec![0u8; buf_size];
+        Ok(nvs.get_str(key, &mut buf)?.unwrap_or(default).to_string())
+    }
+    fn get_nvs_u8(nvs: &EspDefaultNvs, key: &str, default: u8) -> anyhow::Result<u8> {
+        Ok(nvs.get_u8(key)?.unwrap_or(default))
+    }
     fn get_mac_address(wifi: &EspWifi) -> Result<[u8; 6], anyhow::Error> {
         let mac = wifi.get_mac(WifiDeviceId::Sta)?;
         Ok(mac)
@@ -140,16 +103,21 @@ impl Config {
             .unwrap_or("")
             .to_string()
     }
+
+    pub fn set_speech_speed(&mut self, value: f32, nvs: &mut EspDefaultNvs) -> anyhow::Result<()> {
+        self.speech_speed = value;
+        nvs.set_str("speech_speed", &value.to_string())?;
+        Ok(())
+    }
 }
 #[allow(unused)]
 impl Config {
     impl_str_setter!(set_wifi_ssid, wifi_ssid, "wifi_ssid");
     impl_str_setter!(set_wifi_password, wifi_password, "wifi_password");
+    impl_str_setter!(set_api_key, api_key, "api_key");
     impl_str_setter!(set_text_model, text_model, "text_model");
     impl_str_setter!(set_role_prompt, role_prompt, "role_prompt");
-    impl_str_setter!(set_tts_model, tts_model, "tts_model");
     impl_str_setter!(set_voice, voice, "voice");
-    impl_u8_setter!(set_speech_speed, speech_speed, "speech_speed");
     impl_u8_setter!(set_volume, volume, "volume");
 }
 
@@ -161,11 +129,5 @@ impl Config {
     }
     pub fn get_mut() -> RwLockWriteGuard<'static, Config> {
         CONFIG.get().unwrap().write().unwrap()
-    }
-    pub fn get_voice() -> String {
-        Self::get().voice.clone()
-    }
-    pub fn get_volume() -> u8 {
-        Self::get().volume
     }
 }

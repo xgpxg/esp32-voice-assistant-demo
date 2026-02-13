@@ -16,6 +16,7 @@ pub fn register(
     server.fn_handler("/api/settings/get", Method::Get, move |request| {
         let config = Config::get();
         let setting = SettingsRes {
+            api_key: config.api_key.clone(),
             role_prompt: config.role_prompt.clone(),
             voice: config.voice.clone(),
             speech_speed: config.speech_speed,
@@ -30,6 +31,7 @@ pub fn register(
         let req: SettingsReq = json_body!(request);
         let mut nvs = nvs_clone.lock().unwrap();
         let mut config = Config::get_mut();
+        config.set_api_key(&req.api_key, &mut nvs)?;
         config.set_role_prompt(&req.role_prompt, &mut nvs)?;
         config.set_voice(&req.voice, &mut nvs)?;
         config.set_speech_speed(req.speech_speed, &mut nvs)?;

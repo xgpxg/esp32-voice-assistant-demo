@@ -85,13 +85,13 @@ impl TTS {
     }
 
     const API: &str = "wss://dashscope.aliyuncs.com/api-ws/v1/inference";
-    const API_KEY: &str = env!("MASTER_JIN_ALI_API_KEY");
+    //const API_KEY: &str = env!("MASTER_JIN_ALI_API_KEY");
     fn new_ws_client<'a>(
         tx: mpsc::Sender<WsEvent<Vec<u8>>>,
     ) -> anyhow::Result<EspWebSocketClient<'a>> {
         let mut config = EspWebSocketClientConfig::default();
         // 设置认证头
-        let headers = [("Authorization", Self::API_KEY)];
+        let headers = [("Authorization", &Config::get().api_key)];
         let mut headers_str = headers
             .iter()
             .map(|(k, v)| format!("{k}: {v}"))
@@ -154,6 +154,7 @@ impl TTS {
 struct TTSAction;
 impl Action for TTSAction {
     fn run_task(task_id: &str) -> String {
+        let config = Config::get();
         Self::run_task_with_payload(
             task_id,
             json!({
@@ -163,11 +164,11 @@ impl Action for TTSAction {
                 "model": "cosyvoice-v3-flash",
                 "parameters": {
                     "text_type": "PlainText",
-                    "voice": Config::get_voice(),
+                    "voice": config.voice,
                     "format": "pcm",
                     "sample_rate": 16000,
-                    "volume": Config::get_volume(),
-                    "rate": 1,
+                    "volume": config.volume,
+                    "rate": config.speech_speed,
                     "pitch": 1
                 },
                 "input": {

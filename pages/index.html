@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>金师傅</title>
+    <title>ESP32 Rust Voice Assistant Demo</title>
     <link rel="stylesheet" href="styles/common.css"/>
     <link rel="stylesheet" href="styles/page.css"/>
     <script src="scripts/vue.min.js"></script>
@@ -66,7 +66,7 @@
 <div id="app" v-scope @vue:mounted="init" class="container">
     <header>
         <nav>
-            <div class="logo">金师傅</div>
+            <div class="logo">语音助手Demo</div>
         </nav>
     </header>
 
@@ -103,8 +103,31 @@
             </div>
         </div>
     </div>
-
-    <div id="settings-section" class="settings-section">
+    <div class="settings-section">
+        <h2>模型</h2>
+        <div class="setting-item">
+            <label for="api-key" class="setting-label">API Key</label>
+            <div class="flex fill-width">
+                <input id="api-key" v-model="settings.api_key" type="password"
+                       placeholder="填写模型提供商的API Key，目前仅支持阿里云。"
+                       class="fill-width">
+            </div>
+        </div>
+        <div class="setting-item">
+            <label for="text-model" class="setting-label">对话模型</label>
+            <div class="flex fill-width">
+                <select id="text-model" v-model="settings.text_model" class="mr10 fill-width" required>
+                    <option value="qwen-flash">qwen-flash</option>
+                    <option value="qwen-plus">qwen-plus</option>
+                    <option value="qwen3-max">qwen3-max</option>
+                    <option value="qwen3-max">deepseek-v3.2</option>
+                    <option value="qwen3-max">kimi-k2.5</option>
+                    <option value="qwen3-max">glm-4.7</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="settings-section">
         <h2>对话</h2>
         <div class="setting-item">
             <label for="role" class="setting-label">扮演角色</label>
@@ -146,24 +169,6 @@
         </div>
     </div>
 
-
-    <div class="settings-section">
-        <h2>系统</h2>
-
-        <div class="setting-item">
-            <div class="setting-label">当前版本</div>
-            <div class="flex">
-                v0.1.0
-            </div>
-        </div>
-        <div class="setting-item">
-            <div class="setting-label">检查更新</div>
-            <div class="flex">
-                <a href="javascript:void(0)" @click="checkUpdate">检查更新</a>
-            </div>
-        </div>
-    </div>
-
     <div>
         <button @click="saveSettings" class="mr10">保存设置</button>
     </div>
@@ -176,6 +181,8 @@
 <script>
     PetiteVue.createApp({
         settings: {
+            // API Key
+            api_key: '',
             // 语言模型
             text_model: '',
             // 角色提示词
@@ -214,7 +221,7 @@
         },
         async loadSettings() {
             this.settings = await get_settings()
-            this.settings.speech_speed = (this.settings.speech_speed * 2 / 255)
+            this.settings.text_model = this.settings.text_model || 'qwen-flash'
         },
         async saveSettings() {
             if (this.settings.role_prompt.length > 256) {
@@ -222,7 +229,7 @@
             }
             await upsert_settings({
                 ...this.settings,
-                speech_speed: Number((this.settings.speech_speed / 2 * 255).toFixed(0)),
+                speech_speed: Number(this.settings.speech_speed),
                 volume: Number(this.settings.volume),
             }).then(() => {
                 msg.success('配置已更新')
@@ -251,6 +258,7 @@
         },
         async wifiIsConnected() {
             this.connectedSSID = await wifiIsConnected()
+            this.ssid = this.connectedSSID
         },
 
     }).mount('#app');

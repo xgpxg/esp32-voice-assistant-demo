@@ -128,9 +128,7 @@ fn connect_wifi(
             let mut config = Config::get_mut();
             config.set_wifi_ssid(req.ssid.as_str(), nvs)?;
             config.set_wifi_password(req.password.as_str(), nvs)?;
-            // nvs.set_str("WIFI_SSID", req.ssid.as_str())?;
-            // nvs.set_str("WIFI_PASSWORD", req.password.as_str())?;
-            log::info!("Wifi连接成功: {}", req.ssid);
+            log::info!("已连接到 {}", req.ssid);
             return Ok(());
         }
         sleep(std::time::Duration::from_secs(1));

@@ -1,3 +1,4 @@
+use crate::config::Config;
 use embedded_svc::{http::client::Client as HttpClient, io::Write, utils::io};
 use esp_idf_svc::http::client::{Configuration, EspHttpConnection};
 use serde_json::{json, Value};
@@ -21,15 +22,21 @@ impl LLM {
     }
 
     const API: &str = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
-    const MODEL: &str = "qwen-plus";
-    const API_KEY: &str = env!("MASTER_JIN_ALI_API_KEY");
+    //const MODEL: &str = "qwen-plus";
+    //const API_KEY: &str = env!("MASTER_JIN_ALI_API_KEY");
+    const DEFAULT_PROMPT: &str = "回答时禁止废话，精简标点符号，返回易于播放的文本格式。";
     pub fn chat(&mut self, input: &str) -> anyhow::Result<String> {
+        let config = Config::get();
+        let role_prompt = match config.role_prompt.as_str() {
+            "" => Self::DEFAULT_PROMPT.to_string(),
+            role_prompt => format!("{} ; {}", Self::DEFAULT_PROMPT, role_prompt),
+        };
         let json = json!({
-            "model": Self::MODEL,
+            "model": config.text_model,
             "messages": [
                 {
                     "role": "system",
-                    "content": "你是一个语音助手，回答时禁止废话，精简标点符号，返回易于播放的文本格式。"
+                    "content": role_prompt
                 },
                 {
                     "role": "user",
@@ -48,7 +55,7 @@ impl LLM {
         let headers = [
             ("content-type", "application/json"),
             ("content-length", &*content_length_header),
-            ("Authorization", &format!("Bearer {}", Self::API_KEY)),
+            ("Authorization", &format!("Bearer {}", Config::get().api_key)),
         ];
 
         let mut request = self.client.post(Self::API, &headers)?;
