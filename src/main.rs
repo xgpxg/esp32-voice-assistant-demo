@@ -246,7 +246,7 @@ fn init_wifi(wifi: &mut EspWifi<'static>, nvs: &EspDefaultNvs) -> anyhow::Result
     wifi.start()?;
 
     // 尝试连接
-    if ssid != "" {
+    if !ssid.is_empty() {
         log::info!("Wifi连接中: {}", ssid);
         wifi.connect()?;
     }
